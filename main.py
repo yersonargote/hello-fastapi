@@ -1,4 +1,3 @@
-from importlib.resources import path
 from typing import List, Optional
 from fastapi import Body, FastAPI, Path, Query, status, Response
 from pydantic import BaseModel, Field
@@ -9,13 +8,11 @@ app = FastAPI()
 
 
 class Item(BaseModel):
-    name: str = Field(..., min_length=2, max_length=50)
-    description: Optional[str] = Field(None, min_length=3, max_length=500)
-    price: float = Field(..., gt=0, le=100000000)
-
-
-class ItemOut(Item):
-    id: str = Field(..., min_length=2, max_length=50)
+    id: str = Field(..., title="The item's unique ID")
+    name: str = Field(..., min_length=2, max_length=50, title="The item's name")
+    description: Optional[str] = Field(None, min_length=3, max_length=500, title="The item's description")
+    price: float = Field(..., gt=0, le=100000000, title="The item's price")
+    stock: int = Field(..., gt=0, le=100, title="The item's stock")
 
 
 items: Dict[str, Item] = {}
@@ -45,23 +42,21 @@ def read_item(
 
 
 @app.post(
-    path="/items/{item_id}",
+    path="/items/",
     status_code=status.HTTP_201_CREATED
 )
 def create_item(
-    item_id: str = Path(...),
     item: Item = Body(...),
     response: Response = Response
 ):
-    if item_id in items.keys():
+    if item.id in items.keys():
         response.status_code = status.HTTP_409_CONFLICT
         return {
             "detail": "Item already exists",
-            "item_id": item_id,
             "item": item
         }
-    items[item_id] = item
-    return items[item_id]
+    items[item.id] = item
+    return items[item.id]
 
 
 @app.put(
