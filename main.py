@@ -15,7 +15,7 @@ from password import get_password_hash
 app = FastAPI()
 
 
-async def get_current_user(token: str = Depends(OAuth2PasswordBearer(
+def get_current_user(token: str = Depends(OAuth2PasswordBearer(
         tokenUrl="/token"))) -> User:
     if token is None:
         raise HTTPException(
@@ -32,7 +32,7 @@ async def get_current_user(token: str = Depends(OAuth2PasswordBearer(
     response_model=List[User],
     dependencies=[Depends(get_current_user)],
 )
-async def get_all_users() -> List[User]:
+def get_all_users() -> List[User]:
     return list(users.values())
 
 
@@ -41,7 +41,7 @@ async def get_all_users() -> List[User]:
     status_code=status.HTTP_201_CREATED,
     response_model=User,
 )
-async def create_user(user: User) -> User:
+def create_user(user: User) -> User:
     for u in users.values():
         if u.email == user.email:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,
@@ -61,7 +61,7 @@ async def create_user(user: User) -> User:
     response_model=User,
     dependencies=[Depends(get_current_user)]
 )
-async def get_user(user_id: str) -> User:
+def get_user(user_id: str) -> User:
     if user_id not in users:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="User not found")
@@ -72,13 +72,13 @@ async def get_user(user_id: str) -> User:
     path="/token",
     status_code=status.HTTP_200_OK
 )
-async def create_token(
+def create_token(
     form_data: OAuth2PasswordRequestForm = Depends(
         OAuth2PasswordRequestForm)
 ):
     email = form_data.username
     password = form_data.password
-    user = await authenticate(email=email, password=password)
+    user = authenticate(email=email, password=password)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
     return {"access_token": user.access_token, "token_type": "bearer"}
@@ -90,7 +90,7 @@ async def create_token(
     response_model=List[Item],
     dependencies=[Depends(get_current_user)]
 )
-async def read_all_items():
+def read_all_items():
     return list(items.values())
 
 
@@ -99,13 +99,13 @@ async def read_all_items():
     status_code=status.HTTP_200_OK,
     response_model=Item,
 )
-async def read_item(
+def read_item(
     item_id: str = Path(...)
 ):
     if item_id not in items:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail="Item not found")
-    return await items[item_id]
+    return items[item_id]
 
 
 @app.post(
