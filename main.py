@@ -1,11 +1,11 @@
 # Python imports
-import email
-from pstats import Stats
 from typing import List
+
 # FastAPI imports
 from fastapi import Body, Depends, FastAPI, Path, Query, status, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from auth import authenticate, create_access
+
 # Local imports
 from models import Item, User
 from data import items, users
@@ -80,7 +80,9 @@ def create_token(
     password = form_data.password
     user = authenticate(email=email, password=password)
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password")
     return {"access_token": user.access_token, "token_type": "bearer"}
 
 
