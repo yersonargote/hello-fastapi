@@ -33,6 +33,15 @@ def get_current_user(token: str = Depends(OAuth2PasswordBearer(
     dependencies=[Depends(get_current_user)],
 )
 def get_all_users() -> List[User]:
+    """
+    Get all users
+    
+    This path operation returns all user from the users dictionary.
+    
+    No parameters.
+
+    Returns a list with the information of each user.
+    """
     return list(users.values())
 
 
@@ -42,6 +51,17 @@ def get_all_users() -> List[User]:
     response_model=User,
 )
 def create_user(user: User) -> User:
+    """
+    Create user.
+
+    This path operation create a user and append to users dict.
+
+    Parameters:
+        - user: User to be added to users dict.
+    
+    Returns:
+        - user: User has been added to users dict.
+    """
     for u in users.values():
         if u.email == user.email:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT,
