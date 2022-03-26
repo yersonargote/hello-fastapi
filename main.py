@@ -23,7 +23,10 @@ def get_current_user(token: str = Depends(OAuth2PasswordBearer(
     for user in users.values():
         if user.access_token == token:
             return user
-    return None
+    raise HTTPException(
+        status_code=status.HTTP_404_NOT_FOUND,
+        detail="User token not found."
+    )
 
 
 @app.get(
