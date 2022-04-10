@@ -1,41 +1,50 @@
 # Python imports
-from typing import List
+from typing import List, cast
 
 # FastAPI imports
 from fastapi import Body, Depends, FastAPI, Path, Query, status, HTTPException
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
-from auth import authenticate, create_access
+from tortoise.exceptions import DoesNotExist, IntegrityError
+from tortoise import timezone
+from tortoise.contrib.fastapi import register_tortoise
 
 # Local imports
-from models import Item, User
+from auth import authenticate, create_access_token
+from config import TORTOISE_ORM
 from data import items, users
 from password import get_password_hash
+from models import (
+    AccessToken,
+    AccessTokenTortoise,
+    Item,
+    User,
+    UserPydantic,
+    UserPydanticList,
+    UserTortoise,
+)
 
 
 app = FastAPI()
 
 
-def get_current_user(token: str = Depends(OAuth2PasswordBearer(
-        tokenUrl="/token"))) -> User:
-    if token is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authorized")
-    for user in users.values():
-        if user.access_token == token:
-            return user
-    raise HTTPException(
-        status_code=status.HTTP_404_NOT_FOUND,
-        detail="User token not found."
-    )
+async def get_current_user(token: str = Depends(OAuth2PasswordBearer(
+        tokenUrl="/token"))) -> UserTortoise:
+    try:
+        access_token: AccessTokenTortoise = await AccessTokenTortoise.get(
+            access_token = token, expiration_date__gte=timezone.now()
+        ).prefetch_related("user")
+        return cast(UserTortoise, access_token.user)
+    except DoesNotExist:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 
 @app.get(
     path="/users/",
     status_code=status.HTTP_200_OK,
-    response_model=List[User],
+    response_model=UserPydanticList,
     dependencies=[Depends(get_current_user)],
 )
-def get_all_users() -> List[User]:
+async def get_all_users() -> UserPydanticList:
     """
     Get all users
     
@@ -45,7 +54,10 @@ def get_all_users() -> List[User]:
 
     Returns a list with the information of each user.
     """
-    return list(users.values())
+    users = await UserPydanticList.from_queryset(UserTortoise.all())
+    return users
+    # users = await asyncio.gather(UserTortoise.all())
+    # return [User.from_orm(user) for user in users]
 
 
 @app.post(
@@ -53,17 +65,17 @@ def get_all_users() -> List[User]:
     status_code=status.HTTP_201_CREATED,
     response_model=User,
 )
-def create_user(user: User) -> User:
+async def create_user(user: User) -> User:
     """
     Create user.
 
-    This path operation create a user and append to users dict.
+    This path operation create a user in the users table.
 
     Parameters:
-        - user: User to be added to users dict.
+        user: User to be added to users table.
     
     Returns:
-        - user: User has been added to users dict.
+        user: User has been added to users table.
     """
     for u in users.values():
         if u.email == user.email:
@@ -73,40 +85,49 @@ def create_user(user: User) -> User:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT,
                             detail="User already exists")
     user.password = get_password_hash(user.password)
-    user.access_token = create_access()
-    users[user.id] = user
-    return user
+
+    try:
+        user_tortoise = await UserTortoise.create(
+            **user.dict()
+        )
+    except IntegrityError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exist."
+        )
+    return User.from_orm(user_tortoise)
 
 
 @app.get(
     path="/users/{id}",
     status_code=status.HTTP_200_OK,
-    response_model=User,
+    response_model=UserPydantic,
     dependencies=[Depends(get_current_user)]
 )
-def get_user(user_id: str) -> User:
-    if user_id not in users:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail="User not found")
-    return users[user_id]
+async def get_user(id: str = Path(...)) -> UserPydantic:
+    user = await UserTortoise.get(id=id)
+    return await UserPydantic.from_tortoise_orm(user)
+    # return UserPydantic.from_tortoise_orm(User.from_orm(user_tortoise))
 
 
 @app.post(
     path="/token",
     status_code=status.HTTP_200_OK
 )
-def create_token(
+async def create_token(
     form_data: OAuth2PasswordRequestForm = Depends(
         OAuth2PasswordRequestForm)
 ):
     email = form_data.username
     password = form_data.password
-    user = authenticate(email=email, password=password)
+
+    user = await authenticate(email=email, password=password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password")
-    return {"access_token": user.access_token, "token_type": "bearer"}
+            detail="Incorrect email or password"
+        )
+    token: AccessToken = await create_access_token(user)
+    return {"access_token": token.access_token, "token_type": "bearer"}
 
 
 @app.get(
@@ -115,8 +136,8 @@ def create_token(
     response_model=List[Item],
     dependencies=[Depends(get_current_user)]
 )
-def read_all_items():
-    return list(items.values())
+async def read_all_items():
+    return await UserTortoise.all()
 
 
 @app.get(
@@ -124,7 +145,7 @@ def read_all_items():
     status_code=status.HTTP_200_OK,
     response_model=Item,
 )
-def read_item(
+async def read_item(
     item_id: str = Path(...)
 ):
     if item_id not in items:
@@ -184,3 +205,13 @@ def get_item_by_price(
         )
     filter: List = [item for item in items.values() if item.price == price]
     return filter[:limit]
+
+
+register_tortoise(
+    app,
+    config=TORTOISE_ORM,
+    generate_schemas=True,
+    add_exception_handlers=True
+)
+
+

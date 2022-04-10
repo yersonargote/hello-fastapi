@@ -1,13 +1,19 @@
 # Python imports
 from typing import Optional
 
+from tortoise.exceptions import DoesNotExist
+
 # Local imports
-from data import users
-from models import User
-from password import generate_token, verify_password
+from password import verify_password
+from models import (
+    AccessToken,
+    AccessTokenTortoise,
+    User,
+    UserTortoise
+)
 
 
-def authenticate(email: str, password: str) -> Optional[User]:
+async def authenticate(email: str, password: str) -> Optional[User]:
     """ authenticate
 
     parameters:
@@ -16,16 +22,22 @@ def authenticate(email: str, password: str) -> Optional[User]:
     return:
         user: returns authenticated user.
     """
-    for user in users.values():
-        if user.email == email and verify_password(password, user.password):
-            return user
-    return None
+    try:
+        user = await UserTortoise.get(email=email)
+    except DoesNotExist:
+        return None
+
+    if not verify_password(password, user.password):
+        return None
+    return User.from_orm(user)
 
 
-def create_access() -> str:
+async def create_access_token(user: User) -> AccessToken:
     """
     create access token
 
-    returns: created str token. 
+    returns: created Access Token. 
     """
-    return generate_token()
+    access_token = AccessToken(user_id=user.id)
+    access_token_tortoise = await AccessTokenTortoise.create(**access_token.dict())
+    return AccessToken.from_orm(access_token_tortoise)
