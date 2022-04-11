@@ -21,6 +21,9 @@ from models import (
     UserPydantic,
     UserPydanticList,
     UserTortoise,
+    ItemTortoise,
+    ItemPydantic,
+    ItemPydanticList,
 )
 
 
@@ -29,6 +32,9 @@ app = FastAPI()
 
 async def get_current_user(token: str = Depends(OAuth2PasswordBearer(
         tokenUrl="/token"))) -> UserTortoise:
+    """
+    Get current user from token and return UserTortoise object.
+    """
     try:
         access_token: AccessTokenTortoise = await AccessTokenTortoise.get(
             access_token = token, expiration_date__gte=timezone.now()
@@ -46,9 +52,9 @@ async def get_current_user(token: str = Depends(OAuth2PasswordBearer(
 )
 async def get_all_users() -> UserPydanticList:
     """
-    Get all users
+    Get all users.
     
-    This path operation returns all user from the users dictionary.
+    This path operation returns all user from the users table.
     
     No parameters.
 
@@ -104,9 +110,19 @@ async def create_user(user: User) -> User:
     dependencies=[Depends(get_current_user)]
 )
 async def get_user(id: str = Path(...)) -> UserPydantic:
+    """
+    Get user.
+
+    This path operation returns the user with the id specified in the path.
+
+    Parameters:
+        id: Id of the user to be returned.
+
+    Returns:
+        user: User with the id specified in the path.
+    """
     user = await UserTortoise.get(id=id)
     return await UserPydantic.from_tortoise_orm(user)
-    # return UserPydantic.from_tortoise_orm(User.from_orm(user_tortoise))
 
 
 @app.post(
@@ -117,6 +133,9 @@ async def create_token(
     form_data: OAuth2PasswordRequestForm = Depends(
         OAuth2PasswordRequestForm)
 ):
+    """
+    Create token.
+    """
     email = form_data.username
     password = form_data.password
 
@@ -133,42 +152,43 @@ async def create_token(
 @app.get(
     path="/items",
     status_code=status.HTTP_200_OK,
-    response_model=List[Item],
+    response_model=ItemPydanticList,
     dependencies=[Depends(get_current_user)]
 )
 async def read_all_items():
-    return await UserTortoise.all()
+    items = await ItemPydanticList.from_queryset(ItemTortoise.all())
+    return items
 
 
 @app.get(
-    path="/items/{item_id}",
+    path="/items/{id}",
     status_code=status.HTTP_200_OK,
-    response_model=Item,
+    response_model=ItemPydantic,
+    dependencies=[Depends(get_current_user)]
 )
 async def read_item(
-    item_id: str = Path(...)
+    id: str = Path(...)
 ):
-    if item_id not in items:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail="Item not found")
-    return items[item_id]
+    item = await ItemTortoise.get(id=id)
+    return await ItemPydantic.from_tortoise_orm(item)
 
 
 @app.post(
     path="/items/",
     status_code=status.HTTP_201_CREATED,
     response_model=Item,
+    dependencies=[Depends(get_current_user)]
 )
-def create_item(
+async def create_item(
     item: Item = Body(...)
 ):
-    if item.id in items.keys():
+    try:
+        item_tortoise = await ItemTortoise.create(**item.dict())
+    except IntegrityError:
         raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Item already exists",
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Item already exist."
         )
-    items[item.id] = item
-    return items[item.id]
+    return Item.from_orm(item_tortoise)
 
 
 @app.put(
@@ -213,5 +233,3 @@ register_tortoise(
     generate_schemas=True,
     add_exception_handlers=True
 )
-
-

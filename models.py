@@ -12,6 +12,7 @@ from tortoise.fields import CharField, ForeignKeyField
 # from tortoise.fields.relational import ForeignKeyRelation
 from tortoise.fields.data import DatetimeField, FloatField, IntField
 from tortoise.contrib.pydantic.creator import pydantic_model_creator, pydantic_queryset_creator
+from tortoise.validators import MinValueValidator, MaxValueValidator
 
 # Local
 from password import generate_token
@@ -37,8 +38,8 @@ class Item(BaseModel):
                       title="The item's name")
     description: Optional[str] = Field(
         None, min_length=3, max_length=500, title="The item's description")
-    price: float = Field(..., gt=0, le=100000000, title="The item's price")
-    stock: int = Field(..., gt=0, le=10000, title="The item's stock")
+    price: float = Field(..., ge=0, le=100000000, title="The item's price")
+    stock: int = Field(..., ge=0, le=10000, title="The item's stock")
 
     class Config:
         orm_mode = True
@@ -57,8 +58,8 @@ class ItemTortoise(Model):
     id: str = CharField(pk=True, max_length=255)
     name: str = CharField(max_length=255, null=False, index=True)
     description: Optional[str] = CharField(max_length=500, null=True)
-    price: float = FloatField(null=False)
-    stock: int = IntField(null=False)
+    price: float = FloatField(null=False, validators=[MinValueValidator(0), MaxValueValidator(100000000)])
+    stock: int = IntField(null=False, validators=[MinValueValidator(0), MaxValueValidator(10000)])
     # TODO: Validators. Positive values in price and stock.
 
     class Meta:
@@ -131,3 +132,5 @@ class AccessTokenTortoise(Model):
 
 UserPydantic = pydantic_model_creator(UserTortoise)
 UserPydanticList = pydantic_queryset_creator(UserTortoise)
+ItemPydantic = pydantic_model_creator(ItemTortoise)
+ItemPydanticList = pydantic_queryset_creator(ItemTortoise)
