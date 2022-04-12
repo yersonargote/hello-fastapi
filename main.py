@@ -1,5 +1,5 @@
 # Python imports
-from typing import List, cast
+from typing import List, Union, cast
 
 # FastAPI imports
 from fastapi import Body, Depends, FastAPI, Path, Query, status, HTTPException
@@ -194,37 +194,32 @@ async def create_item(
 @app.put(
     path="/items/{item_id}",
     status_code=status.HTTP_200_OK,
-    response_model=Item,
+    response_model=ItemPydantic,
+    dependencies=[Depends(get_current_user)]
 )
-def update_item(
+async def update_item(
     item_id: str = Path(...),
     item: Item = Body(...),
 ):
-    if item_id not in items.keys():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Item not found",
-        )
-    items[item_id] = item
-    return items[item_id]
+    item_tortoise = await ItemTortoise.get_or_none(id=item_id)
+    if not item_tortoise:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="NOT FOUND.")
+    await item_tortoise.update_from_dict(item.dict(exclude={"id"}, exclude_unset=True)).save()
+    return await ItemPydantic.from_tortoise_orm(item_tortoise)
 
 
 @app.get(
     path="/items/",
     status_code=status.HTTP_200_OK,
-    response_model=List[Item],
+    response_model=ItemPydanticList,
+    dependencies=[Depends(get_current_user)]
 )
-def get_item_by_price(
+async def get_item_by_price(
     price: float = Query(...),
-    limit: int = Query(..., gt=0, le=100),
+    limit: int = Query(default=10, gt=0, le=100),
 ):
-    if price < 0 or limit < 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid price or limit",
-        )
-    filter: List = [item for item in items.values() if item.price == price]
-    return filter[:limit]
+    items_tortoise = await ItemTortoise.filter(price__gte=price).limit(limit)
+    return items_tortoise
 
 
 register_tortoise(
