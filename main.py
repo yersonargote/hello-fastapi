@@ -1,5 +1,5 @@
 # Python imports
-from typing import List, Union, cast
+from typing import cast
 
 # FastAPI imports
 from fastapi import Body, Depends, FastAPI, Path, Query, status, HTTPException
@@ -11,7 +11,6 @@ from tortoise.contrib.fastapi import register_tortoise
 # Local imports
 from auth import authenticate, create_access_token
 from config import TORTOISE_ORM
-from data import items, users
 from password import get_password_hash
 from models import (
     AccessToken,
@@ -83,22 +82,14 @@ async def create_user(user: User) -> User:
     Returns:
         user: User has been added to users table.
     """
-    for u in users.values():
-        if u.email == user.email:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                                detail="User already exists")
-    if user.id in users:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT,
-                            detail="User already exists")
     user.password = get_password_hash(user.password)
-
     try:
         user_tortoise = await UserTortoise.create(
             **user.dict()
         )
     except IntegrityError:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail="Email already exist."
+            status_code=status.HTTP_400_BAD_REQUEST, detail="User already exist."
         )
     return User.from_orm(user_tortoise)
 
@@ -123,6 +114,24 @@ async def get_user(id: str = Path(...)) -> UserPydantic:
     """
     user = await UserTortoise.get(id=id)
     return await UserPydantic.from_tortoise_orm(user)
+
+
+@app.put(
+    path="/user/{id}",
+    status_code=status.HTTP_200_OK,
+    response_model=UserPydantic,
+    dependencies=[Depends(get_current_user)]
+)
+async def update_user(
+    id: str = Path(...),
+    user: User= Body(...),
+):
+    user.password = get_password_hash(user.password)
+    user_tortoise = await UserTortoise.get_or_none(id=id)
+    if not user_tortoise:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="NOT FOUND.")
+    await user_tortoise.update_from_dict(user.dict(exclude={"id"}, exclude_unset=True)).save()
+    return await UserPydantic.from_tortoise_orm(user_tortoise)
 
 
 @app.post(
