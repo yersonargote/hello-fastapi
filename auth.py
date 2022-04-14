@@ -1,8 +1,13 @@
 # Python imports
-from typing import Optional
-
+from typing import Optional, cast
+# From fastapi
+from fastapi.exceptions import HTTPException
+from fastapi.param_functions import Depends
+from fastapi.security.oauth2 import OAuth2PasswordBearer
+from starlette import status
+# From tortoise
 from tortoise.exceptions import DoesNotExist
-
+from tortoise import timezone
 # Local imports
 from password import verify_password
 from models import (
@@ -11,6 +16,21 @@ from models import (
     User,
     UserTortoise
 )
+
+
+async def get_current_user(
+        token: str = Depends(OAuth2PasswordBearer(tokenUrl="/token"))
+    ) -> UserTortoise:
+    """
+    Get current user from token and return UserTortoise object.
+    """
+    try:
+        access_token: AccessTokenTortoise = await AccessTokenTortoise.get(
+            access_token = token, expiration_date__gte=timezone.now()
+        ).prefetch_related("user")
+        return cast(UserTortoise, access_token.user)
+    except DoesNotExist:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
 
 async def authenticate(email: str, password: str) -> Optional[User]:
