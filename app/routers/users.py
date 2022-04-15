@@ -4,12 +4,13 @@ from fastapi.exceptions import HTTPException
 from fastapi.param_functions import Body, Depends, Path
 from fastapi.security.oauth2 import OAuth2PasswordRequestForm
 from starlette import status
+# From tortoise
 from tortoise.exceptions import IntegrityError
-from auth import authenticate, create_access_token, get_current_user
-
 # From local
-from models import AccessToken, User, UserPydantic, UserPydanticList, UserTortoise
-from password import get_password_hash
+from app.models.auth import AccessToken
+from app.models.user import User, UserPydantic, UserPydanticList, UserTortoise
+from app.auth import authenticate, create_access_token, get_current_user
+from app.password import get_password_hash
 
 
 router = APIRouter()
@@ -17,7 +18,8 @@ router = APIRouter()
 
 @router.post(
     path="/token",
-    status_code=status.HTTP_200_OK
+    status_code=status.HTTP_200_OK,
+    tags=["login"]
 )
 async def create_token(
     form_data: OAuth2PasswordRequestForm = Depends(

@@ -6,8 +6,8 @@ from starlette import status
 # From tortoise
 from tortoise.exceptions import IntegrityError
 # From local
-from auth import get_current_user
-from models import Item, ItemPydantic, ItemPydanticList, ItemTortoise
+from app.auth import get_current_user
+from app.models.item import Item, ItemPydantic, ItemPydanticList, ItemTortoise
 
 
 router = APIRouter()
@@ -17,9 +17,10 @@ router = APIRouter()
     path="/items",
     status_code=status.HTTP_200_OK,
     response_model=ItemPydanticList,
+    tags=["items"],
     dependencies=[Depends(get_current_user)]
 )
-async def read_all_items():
+async def get_all_items():
     items = await ItemPydanticList.from_queryset(ItemTortoise.all())
     return items
 
@@ -28,9 +29,10 @@ async def read_all_items():
     path="/items/{id}",
     status_code=status.HTTP_200_OK,
     response_model=ItemPydantic,
+    tags=["items"],
     dependencies=[Depends(get_current_user)]
 )
-async def read_item(
+async def get_item(
     id: str = Path(...)
 ):
     item = await ItemTortoise.get(id=id)
@@ -41,6 +43,7 @@ async def read_item(
     path="/items/",
     status_code=status.HTTP_201_CREATED,
     response_model=Item,
+    tags=["items"],
     dependencies=[Depends(get_current_user)]
 )
 async def create_item(
@@ -59,6 +62,7 @@ async def create_item(
     path="/items/{item_id}",
     status_code=status.HTTP_200_OK,
     response_model=ItemPydantic,
+    tags=["items"],
     dependencies=[Depends(get_current_user)]
 )
 async def update_item(
@@ -76,6 +80,7 @@ async def update_item(
     path="/items/",
     status_code=status.HTTP_200_OK,
     response_model=ItemPydanticList,
+    tags=["items"],
     dependencies=[Depends(get_current_user)]
 )
 async def get_item_by_price(

@@ -1,20 +1,4 @@
+import uvicorn
 
-from fastapi.applications import FastAPI
-from tortoise.contrib.fastapi import register_tortoise
-
-from config import TORTOISE_ORM
-from routers import routers
-
-app = FastAPI()
-
-
-for router in routers:
-    app.include_router(router)
-
-
-register_tortoise(
-    app,
-    config=TORTOISE_ORM,
-    generate_schemas=True,
-    add_exception_handlers=True
-)
+if __name__ == '__main__':
+    uvicorn.run('app.app:app', host='0.0.0.0', port=5000, log_level='info', reload=True)

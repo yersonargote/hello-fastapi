@@ -1,5 +1,4 @@
-# Python imports
-# Secure imports
+# From python
 import secrets
 from passlib.context import CryptContext
 

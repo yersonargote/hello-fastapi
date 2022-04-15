@@ -9,13 +9,9 @@ from starlette import status
 from tortoise.exceptions import DoesNotExist
 from tortoise import timezone
 # Local imports
-from password import verify_password
-from models import (
-    AccessToken,
-    AccessTokenTortoise,
-    User,
-    UserTortoise
-)
+from app.models.auth import AccessToken, AccessTokenTortoise
+from app.models.user import User, UserTortoise
+from app.password import verify_password
 
 
 async def get_current_user(
