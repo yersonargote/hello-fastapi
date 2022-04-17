@@ -66,10 +66,10 @@ async def get_all_users() -> UserPydanticList:
 @router.post(
     path="/users/",
     status_code=status.HTTP_201_CREATED,
-    response_model=User,
+    response_model=UserPydantic,
     tags=["users"]
 )
-async def create_user(user: User) -> User:
+async def create_user(user: User) -> UserPydantic:
     """
     Create user.
 
@@ -90,7 +90,8 @@ async def create_user(user: User) -> User:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail="User already exist."
         )
-    return User.from_orm(user_tortoise)
+    # return User.from_orm(user_tortoise)
+    return await UserPydantic.from_tortoise_orm(user_tortoise)
 
 
 @router.get(
