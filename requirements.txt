@@ -1,3 +1,4 @@
+aiosqlite==0.17.0
 anyio==3.5.0
 asgiref==3.5.0
 autopep8==1.6.0
@@ -8,17 +9,21 @@ fastapi==0.75.0
 h11==0.13.0
 httptools==0.4.0
 idna==3.3
+iso8601==1.0.2
 passlib==1.7.4
 pycodestyle==2.8.0
 pycparser==2.21
 pydantic==1.9.0
+pypika-tortoise==0.1.6
 python-dotenv==0.19.2
 python-multipart==0.0.5
+pytz==2022.2.1
 PyYAML==6.0
 six==1.16.0
 sniffio==1.2.0
 starlette==0.17.1
 toml==0.10.2
+tortoise-orm==0.19.2
 typing-extensions==4.1.1
 uvicorn==0.17.6
 uvloop==0.16.0
